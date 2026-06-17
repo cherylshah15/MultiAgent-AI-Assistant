@@ -14,13 +14,9 @@ client = Groq(
 )
 
 
-def route_question(question):
+def route_question(question, memory=None):
 
     question_lower = question.lower()
-
-    # -------------------
-    # DB KEYWORDS
-    # -------------------
 
     db_keywords = [
         "employee",
@@ -31,13 +27,8 @@ def route_question(question):
         "count",
         "finance",
         "hr",
-        "analytics",
-        "ai department"
+        "analytics"
     ]
-
-    # -------------------
-    # RAG KEYWORDS
-    # -------------------
 
     rag_keywords = [
         "document",
@@ -46,13 +37,8 @@ def route_question(question):
         "report",
         "summary",
         "summarize",
-        "this document",
         "uploaded file"
     ]
-
-    # -------------------
-    # WEB KEYWORDS
-    # -------------------
 
     web_keywords = [
         "latest",
@@ -68,9 +54,9 @@ def route_question(question):
         "breaking"
     ]
 
-    # ====================================
+    # ==========================
     # WEB AGENT
-    # ====================================
+    # ==========================
 
     if any(word in question_lower for word in web_keywords):
 
@@ -82,58 +68,51 @@ def route_question(question):
                 {
                     "role": "system",
                     "content": """
-                    You are a news analyst.
+You are a news analyst.
 
-                    Use ONLY the provided search results.
+Use ONLY the search results provided.
 
-                    Do not invent facts.
+Do not invent information.
 
-                    If information is missing,
-                    clearly say so.
-                    """
+If data is missing, clearly say so.
+"""
                 },
                 {
                     "role": "user",
                     "content": f"""
-                    Search Results:
+Search Results:
 
-                    {search_results}
+{search_results}
 
-                    Question:
+Question:
 
-                    {question}
-                    """
+{question}
+"""
                 }
             ]
         )
 
-        return f"""
-====================
-AGENT SELECTED: WEB
-====================
+        return {
+            "agent": "WEB",
+            "answer": response.choices[0].message.content
+        }
 
-{response.choices[0].message.content}
-"""
-
-    # ====================================
+    # ==========================
     # RAG AGENT
-    # ====================================
+    # ==========================
 
     elif any(word in question_lower for word in rag_keywords):
 
         answer = ask_rag(question)
 
-        return f"""
-====================
-AGENT SELECTED: RAG
-====================
+        return {
+            "agent": "RAG",
+            "answer": answer
+        }
 
-{answer}
-"""
-
-    # ====================================
+    # ==========================
     # DATABASE AGENT
-    # ====================================
+    # ==========================
 
     elif (
         any(word in question_lower for word in db_keywords)
@@ -173,11 +152,9 @@ AGENT SELECTED: RAG
 
         elif "finance" in question_lower:
 
-            cursor.execute("""
-            SELECT name
-            FROM employees
-            WHERE department='Finance'
-            """)
+            cursor.execute(
+                "SELECT name FROM employees WHERE department='Finance'"
+            )
 
             rows = cursor.fetchall()
 
@@ -187,11 +164,9 @@ AGENT SELECTED: RAG
 
         elif "ai" in question_lower:
 
-            cursor.execute("""
-            SELECT name
-            FROM employees
-            WHERE department='AI'
-            """)
+            cursor.execute(
+                "SELECT name FROM employees WHERE department='AI'"
+            )
 
             rows = cursor.fetchall()
 
@@ -201,11 +176,9 @@ AGENT SELECTED: RAG
 
         elif "hr" in question_lower:
 
-            cursor.execute("""
-            SELECT name
-            FROM employees
-            WHERE department='HR'
-            """)
+            cursor.execute(
+                "SELECT name FROM employees WHERE department='HR'"
+            )
 
             rows = cursor.fetchall()
 
@@ -215,10 +188,9 @@ AGENT SELECTED: RAG
 
         elif "department" in question_lower:
 
-            cursor.execute("""
-            SELECT DISTINCT department
-            FROM employees
-            """)
+            cursor.execute(
+                "SELECT DISTINCT department FROM employees"
+            )
 
             rows = cursor.fetchall()
 
@@ -228,26 +200,41 @@ AGENT SELECTED: RAG
 
         else:
 
-            answer = (
-                "Database query understood, "
-                "but not implemented."
-            )
+            answer = "Database query understood but not implemented."
 
         conn.close()
 
-        return f"""
-=========================
-AGENT SELECTED: DATABASE
-=========================
+        return {
+            "agent": "DATABASE",
+            "answer": answer
+        }
 
-{answer}
-"""
-
-    # ====================================
+    # ==========================
     # RESEARCH AGENT
-    # ====================================
+    # ==========================
 
     else:
+
+        conversation = ""
+
+        if memory:
+
+            for msg in memory[-6:]:
+
+                conversation += (
+                    f"{msg['role']}: "
+                    f"{msg['content']}\n"
+                )
+
+        user_prompt = f"""
+Conversation History:
+
+{conversation}
+
+Current Question:
+
+{question}
+"""
 
         response = client.chat.completions.create(
             model="llama-3.3-70b-versatile",
@@ -255,23 +242,29 @@ AGENT SELECTED: DATABASE
                 {
                     "role": "system",
                     "content": """
-                    You are an AI research assistant.
+You are an AI research assistant.
 
-                    Explain concepts clearly,
-                    accurately and simply.
-                    """
+Use conversation history whenever it helps.
+
+If the user asks follow-up questions like:
+
+'how does it work'
+'can we use it'
+'advantages'
+
+then understand the topic from previous messages.
+
+Explain clearly and simply.
+"""
                 },
                 {
                     "role": "user",
-                    "content": question
+                    "content": user_prompt
                 }
             ]
         )
 
-        return f"""
-=========================
-AGENT SELECTED: RESEARCH
-=========================
-
-{response.choices[0].message.content}
-"""
+        return {
+            "agent": "RESEARCH",
+            "answer": response.choices[0].message.content
+        }

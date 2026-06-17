@@ -9,14 +9,64 @@ st.set_page_config(
 
 st.title("🤖 Multi-Agent AI Assistant")
 
-question = st.chat_input(
-    "Ask anything..."
-)
+# --------------------
+# MEMORY
+# --------------------
+
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+
+# --------------------
+# SHOW OLD CHAT
+# --------------------
+
+for message in st.session_state.messages:
+
+    with st.chat_message(message["role"]):
+        st.markdown(message["content"])
+
+# --------------------
+# NEW QUESTION
+# --------------------
+
+question = st.chat_input("Ask anything...")
 
 if question:
 
-    st.chat_message("user").write(question)
+    # User message
 
-    answer = route_question(question)
+    st.session_state.messages.append(
+        {
+            "role": "user",
+            "content": question
+        }
+    )
 
-    st.chat_message("assistant").write(answer)
+    with st.chat_message("user"):
+        st.write(question)
+
+    # Agent response
+
+    result = route_question(
+        question,
+        st.session_state.messages
+    )
+
+    agent = result["agent"]
+    answer = result["answer"]
+
+    final_response = f"""
+### AGENT SELECTED: {agent}
+
+{answer}
+"""
+
+    st.session_state.messages.append(
+        {
+            "role": "assistant",
+            "content": final_response
+        }
+    )
+
+    with st.chat_message("assistant"):
+        st.markdown(final_response)
