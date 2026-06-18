@@ -18,6 +18,10 @@ def route_question(question, memory=None):
 
     question_lower = question.lower()
 
+    # ==========================
+    # DATABASE KEYWORDS
+    # ==========================
+
     db_keywords = [
         "employee",
         "employees",
@@ -30,6 +34,10 @@ def route_question(question, memory=None):
         "analytics"
     ]
 
+    # ==========================
+    # RAG KEYWORDS
+    # ==========================
+
     rag_keywords = [
         "document",
         "pdf",
@@ -39,6 +47,10 @@ def route_question(question, memory=None):
         "summarize",
         "uploaded file"
     ]
+
+    # ==========================
+    # WEB KEYWORDS
+    # ==========================
 
     web_keywords = [
         "latest",
@@ -74,7 +86,7 @@ Use ONLY the search results provided.
 
 Do not invent information.
 
-If data is missing, clearly say so.
+If information is missing, clearly say so.
 """
                 },
                 {
@@ -246,11 +258,14 @@ You are an AI research assistant.
 
 Use conversation history whenever it helps.
 
-If the user asks follow-up questions like:
+If the user asks follow-up questions such as:
 
-'how does it work'
-'can we use it'
-'advantages'
+- how does it work
+- can we use it
+- advantages
+- disadvantages
+- explain more
+- give example
 
 then understand the topic from previous messages.
 
