@@ -3,6 +3,7 @@ import streamlit as st
 from agents.router_core import route_question
 
 from memory_manager import (
+    create_memory_db,
     load_messages,
     save_message
 )
@@ -11,6 +12,9 @@ st.set_page_config(
     page_title="Multi-Agent AI Assistant",
     page_icon="🤖"
 )
+
+create_memory_db()
+
 
 st.title("🤖 Multi-Agent AI Assistant")
 
